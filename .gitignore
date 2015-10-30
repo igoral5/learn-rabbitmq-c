@@ -1,3 +1,9 @@
 /.cproject
 /.project
 
+/CMakeFiles/
+/consumer
+/producer
+/cmake_install.cmake
+/CMakeCache.txt
+/Makefile
