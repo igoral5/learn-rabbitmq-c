@@ -8,6 +8,7 @@
 #include <exception>
 #include <cstdlib>
 #include <memory>
+#include <sstream>
 
 #include <boost/lexical_cast.hpp>
 
@@ -33,7 +34,7 @@ try
     const std::string exchange(argv[3]);
     const std::string routing_key(argv[4]);
     const std::string message(argv[5]);
-    //const size_t count = boost::lexical_cast<size_t>(argv[6]);
+    const size_t count = boost::lexical_cast<size_t>(argv[6]);
     amqp_connection_state_t conn = amqp_new_connection();
     amqp_socket_t* socket = amqp_tcp_socket_new(conn);
 
@@ -48,14 +49,32 @@ try
         std::cerr << "error open socket" << std::endl;
         return EXIT_FAILURE;
     }
-    check_error(amqp_login(conn, "/", AMQP_DEFAULT_MAX_CHANNELS,
-            AMQP_DEFAULT_FRAME_SIZE, AMQP_DEFAULT_HEARTBEAT, AMQP_SASL_METHOD_PLAIN), "login");
+    amqp_check_error(amqp_login(conn, "/",
+    		AMQP_DEFAULT_MAX_CHANNELS,
+            AMQP_DEFAULT_FRAME_SIZE,
+			AMQP_DEFAULT_HEARTBEAT,
+			AMQP_SASL_METHOD_PLAIN,
+			"guest",
+			"guest"),
+    			"login");
     amqp_channel_open(conn, 1);
-    check_error(amqp_get_rpc_reply(conn), "open channel");
-
-
-
-	std::cout << "producer" << std::endl;
+    amqp_check_error(amqp_get_rpc_reply(conn), "open channel");
+    for(size_t i = 0; i < count; i++)
+    {
+    	std::ostringstream oss;
+    	oss << i << " - " << message;
+    	check_error(amqp_basic_publish(conn, 1,
+    			amqp_cstring_bytes(exchange.c_str()),
+				amqp_cstring_bytes(routing_key.c_str()),
+				0,
+				0,
+				nullptr,
+				amqp_cstring_bytes(oss.str().c_str())), "publish");
+    	std::cout << "Send: " << oss.str() << std::endl;
+    }
+    amqp_check_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "closing channel");
+    amqp_check_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "closing connection");
+    check_error(amqp_destroy_connection(conn), "ending connection");
 	return EXIT_SUCCESS;
 }
 catch (const std::exception& e)

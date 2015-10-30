@@ -10,7 +10,7 @@
 #include "error.h"
 
 void
-check_error(amqp_rpc_reply_t x, const std::string& context)
+amqp_check_error(amqp_rpc_reply_t x, const std::string& context)
 {
     switch (x.reply_type)
     {
@@ -48,4 +48,13 @@ check_error(amqp_rpc_reply_t x, const std::string& context)
         }
         }
     }
+}
+
+void
+check_error(int err, const std::string& context)
+{
+	if (err < 0)
+	{
+		throw amqp_runtime_error(context + ": " + amqp_error_string2(err));
+	}
 }

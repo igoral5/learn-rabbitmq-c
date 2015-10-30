@@ -19,7 +19,10 @@ public:
 };
 
 void
-check_error(amqp_rpc_reply_t x, const std::string& context);
+amqp_check_error(amqp_rpc_reply_t x, const std::string& context);
+
+void
+check_error(int err, const std::string& context);
 
 
 
