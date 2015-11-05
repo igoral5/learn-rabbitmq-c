@@ -8,8 +8,7 @@
 #include <exception>
 #include <cstdlib>
 #include <string>
-
-#include <boost/lexical_cast.hpp>
+#include <getopt.h>
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
@@ -21,22 +20,54 @@
 
 #include "error.h"
 
-
 log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer");
+
+void
+usage()
+{
+    LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] queue");
+}
+
+
+
 
 int
 main(int argc, char *argv[])
 try
 {
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
-	if (argc < 4)
+    int c;
+    std::string host = "localhost";
+    int port = 5672;
+    while(true)
+    {
+        static struct option long_opt[] = {
+                 {"host", required_argument, nullptr, 'h'},
+                 {"port", required_argument, nullptr, 'p'},
+                 {nullptr, no_argument, nullptr, 0}
+        };
+        c = getopt_long(argc, argv, "h:p:", long_opt, nullptr);
+        if (c == -1)
+            break;
+        switch (c)
+        {
+            case 'h':
+                host = optarg;
+                break;
+            case 'p':
+                port = atoi(optarg);
+                break;
+            default:
+                usage();
+                return EXIT_FAILURE;
+        }
+    }
+	if (optind == argc)
 	{
-	    LOG4CPLUS_ERROR(logger, "Usage: consumer <host> <port> <queue>");
+	    usage();
 	    return EXIT_FAILURE;
 	}
-	const std::string host(argv[1]);
-	const int port = boost::lexical_cast<int>(argv[2]);
-	const std::string name_queue(argv[3]);
+	const std::string name_queue(argv[optind]);
 	amqp_connection_state_t conn = amqp_new_connection();
 	amqp_socket_t* socket = amqp_tcp_socket_new(conn);
 	if (!socket)
