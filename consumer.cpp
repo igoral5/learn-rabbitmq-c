@@ -28,9 +28,6 @@ usage()
     LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] queue");
 }
 
-
-
-
 int
 main(int argc, char *argv[])
 try

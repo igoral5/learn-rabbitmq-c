@@ -9,8 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
-
-#include <boost/lexical_cast.hpp>
+#include <getopt.h>
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
@@ -24,23 +23,60 @@
 
 log4cplus::Logger logger = log4cplus::Logger::getInstance("producer");
 
+void
+usage()
+{
+    LOG4CPLUS_ERROR(logger, "Usage: producer [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] routing_key message");
+}
+
 int
 main (int argc, char *argv[])
 try
 {
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
-    if (argc < 7)
+    int c;
+    std::string host = "localhost";
+    int port = 5672;
+    std::string exchange = "";
+    size_t count = 1;
+    while(true)
     {
-        LOG4CPLUS_ERROR(logger,
-                "Usage: producer <host> <port> <exchange> <routing_key> <message> <count>");
+    	static struct option long_opt[] = {
+    			{"host", required_argument, nullptr, 'h'},
+				{"port", required_argument, nullptr, 'p'},
+				{"exchange", required_argument, nullptr, 'e'},
+				{"count", required_argument, nullptr, 'c'},
+				{nullptr, no_argument, nullptr, 0}
+    	};
+    	c = getopt_long(argc, argv, "h:p:e:c:", long_opt, nullptr);
+    	if (c == -1)
+    		break;
+    	switch(c)
+    	{
+    	case 'h':
+    		host = optarg;
+    		break;
+    	case 'p':
+    		port = atoi(optarg);
+    		break;
+    	case 'e':
+    		exchange = optarg;
+    		break;
+    	case 'c':
+    		count = atol(optarg);
+    		break;
+    	default:
+    		usage();
+    		return EXIT_FAILURE;
+    	}
+    }
+    if (argc < optind + 2)
+    {
+        usage();
         return EXIT_FAILURE;
     }
-    const std::string host(argv[1]);
-    const int port = boost::lexical_cast<int>(argv[2]);
-    const std::string exchange(argv[3]);
-    const std::string routing_key(argv[4]);
-    const std::string message(argv[5]);
-    const size_t count = boost::lexical_cast<size_t>(argv[6]);
+    const std::string routing_key(argv[optind]);
+    const std::string message(argv[optind + 1]);
     amqp_connection_state_t conn = amqp_new_connection();
     amqp_socket_t* socket = amqp_tcp_socket_new(conn);
 
