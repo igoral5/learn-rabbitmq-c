@@ -7,22 +7,82 @@
 #include <iostream>
 #include <exception>
 #include <cstdlib>
+#include <string>
 
+#include <boost/lexical_cast.hpp>
+
+#include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
+#include <log4cplus/configurator.h>
+
+#include <amqp_tcp_socket.h>
+#include <amqp.h>
+#include <amqp_framing.h>
+
+#include "error.h"
+
+
+log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer");
 
 int
 main(int argc, char *argv[])
 try
 {
-	std::cout << "consumer" << std::endl;
+    log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
+	if (argc < 4)
+	{
+	    LOG4CPLUS_ERROR(logger, "Usage: consumer <host> <port> <queue>");
+	    return EXIT_FAILURE;
+	}
+	const std::string host(argv[1]);
+	const int port = boost::lexical_cast<int>(argv[2]);
+	const std::string name_queue(argv[3]);
+	amqp_connection_state_t conn = amqp_new_connection();
+	amqp_socket_t* socket = amqp_tcp_socket_new(conn);
+	if (!socket)
+	{
+	    LOG4CPLUS_ERROR(logger, "error creating socket");
+	    return EXIT_FAILURE;
+	}
+	int status = amqp_socket_open(socket, host.c_str(), port);
+	if (status)
+	{
+	    LOG4CPLUS_ERROR(logger, "error open socket");
+	    return EXIT_FAILURE;
+	}
+	amqp_check_error(amqp_login(conn, "/", AMQP_DEFAULT_MAX_CHANNELS, AMQP_DEFAULT_FRAME_SIZE,
+	           AMQP_DEFAULT_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, "guest", "guest"), "login");
+	amqp_channel_open(conn, 1);
+	amqp_check_error(amqp_get_rpc_reply(conn), "channel open");
+	amqp_bytes_t queue = amqp_cstring_bytes(name_queue.c_str());
+	amqp_queue_declare(conn, 1, queue, 0, 1, 0, 0, amqp_empty_table);
+	amqp_check_error(amqp_get_rpc_reply(conn), "declare queue");
+	amqp_basic_consume(conn, 1, queue, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
+	amqp_check_error(amqp_get_rpc_reply(conn), "consuming");
+	LOG4CPLUS_INFO(logger, "Ожидание входящих сообщений. Для выхода нажмите CTRL+C");
+	while(true)
+	{
+	    amqp_maybe_release_buffers(conn);
+	    amqp_envelope_t envelope;
+	    amqp_rpc_reply_t reply =  amqp_consume_message(conn, &envelope, nullptr, 0);
+	    if (reply.reply_type != AMQP_RESPONSE_NORMAL)
+	        break;
+	    std::string message(reinterpret_cast<char *>(envelope.message.body.bytes), envelope.message.body.len);
+	    LOG4CPLUS_INFO_FMT(logger, "Получено: %s", message.c_str());
+	    amqp_destroy_envelope(&envelope);
+	}
+	amqp_check_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "closing channel");
+	amqp_check_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "closing connection");
+	check_error(amqp_destroy_connection(conn), "ending connection");
 	return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
 {
-	std::cerr << "Exception: " << e.what() << std::endl;
+    LOG4CPLUS_ERROR(logger, e.what());
 	return EXIT_FAILURE;
 }
 catch(...)
 {
-	std::cerr << "Unknown exceprion" << std::endl;
+	LOG4CPLUS_ERROR(logger, "Unknown exceprion");
     return EXIT_FAILURE;
 }
