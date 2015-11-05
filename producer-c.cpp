@@ -38,7 +38,7 @@ try
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     int c;
     std::string host = "localhost";
-    int port = 5672;
+    int port = AMQP_PROTOCOL_PORT;
     std::string exchange = "";
     size_t count = 1;
     while(true)

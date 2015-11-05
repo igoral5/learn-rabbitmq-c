@@ -37,7 +37,7 @@ try
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     int c;
     std::string host = "localhost";
-    int port = 5672;
+    int port = AMQP_PROTOCOL_PORT;
     while(true)
     {
         static struct option long_opt[] = {
@@ -61,7 +61,7 @@ try
                 return EXIT_FAILURE;
         }
     }
-	if (optind == argc)
+	if (argc < optind + 1)
 	{
 	    usage();
 	    return EXIT_FAILURE;
