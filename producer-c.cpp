@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
+#include <locale>
 #include <getopt.h>
 
 #include <log4cplus/logger.h>
@@ -33,6 +34,7 @@ int
 main (int argc, char *argv[])
 try
 {
+	std::locale::global(std::locale(""));
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     int c;
     std::string host = "localhost";

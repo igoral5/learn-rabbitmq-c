@@ -8,6 +8,7 @@
 #include <exception>
 #include <cstdlib>
 #include <string>
+#include <locale>
 #include <getopt.h>
 
 #include <log4cplus/logger.h>
@@ -32,6 +33,7 @@ int
 main(int argc, char *argv[])
 try
 {
+	std::locale::global(std::locale(""));
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     int c;
     std::string host = "localhost";
@@ -96,7 +98,7 @@ try
 	    if (reply.reply_type != AMQP_RESPONSE_NORMAL)
 	        break;
 	    std::string message(reinterpret_cast<char *>(envelope.message.body.bytes), envelope.message.body.len);
-	    LOG4CPLUS_INFO_FMT(logger, "Получено: %s", message.c_str());
+	    LOG4CPLUS_INFO_FMT(logger, "Receive: %s", message.c_str());
 	    amqp_destroy_envelope(&envelope);
 	}
 	amqp_check_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "closing channel");
