@@ -9,3 +9,5 @@
 /Makefile
 /log4cplus.log
 /.settings/
+/consumer-c
+/producer-c
