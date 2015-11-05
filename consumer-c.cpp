@@ -8,7 +8,6 @@
 #include <exception>
 #include <cstdlib>
 #include <string>
-#include <locale>
 #include <getopt.h>
 
 #include <log4cplus/logger.h>
@@ -33,19 +32,17 @@ int
 main(int argc, char *argv[])
 try
 {
-	std::locale::global(std::locale(""));
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
-    int c;
     std::string host = "localhost";
     int port = AMQP_PROTOCOL_PORT;
+    struct option long_opt[] = {
+        {"host", required_argument, nullptr, 'h'},
+        {"port", required_argument, nullptr, 'p'},
+        {nullptr, no_argument, nullptr, 0}
+    };
     while(true)
     {
-        static struct option long_opt[] = {
-                 {"host", required_argument, nullptr, 'h'},
-                 {"port", required_argument, nullptr, 'p'},
-                 {nullptr, no_argument, nullptr, 0}
-        };
-        c = getopt_long(argc, argv, "h:p:", long_opt, nullptr);
+        int c = getopt_long(argc, argv, "h:p:", long_opt, nullptr);
         if (c == -1)
             break;
         switch (c)
