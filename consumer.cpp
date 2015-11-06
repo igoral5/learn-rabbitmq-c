@@ -71,9 +71,10 @@ try
     const std::string name_queue(argv[optind]);
     AmqpClient::Channel::ptr_t channel = AmqpClient::Channel::Create(host, port);
     channel -> DeclareQueue(name_queue, false, true, false, false);
-    const std::string consumer_tag = "consumer-simple";
-    channel -> BasicConsume(name_queue, consumer_tag, true, false, false, 1);
-    channel -> BasicQos(consumer_tag, 1);
+    std::ostringstream consumer_tag;
+    consumer_tag << "consumer-simple-" << getpid();
+    channel -> BasicConsume(name_queue, consumer_tag.str(), true, false, false, 1);
+    channel -> BasicQos(consumer_tag.str(), 1);
     LOG4CPLUS_INFO(logger, "Ожидание входящих сообщений. Для выхода нажмите CTRL+C");
     while(true)
     {
