@@ -23,12 +23,12 @@
 
 #include "error.h"
 
-log4cplus::Logger logger = log4cplus::Logger::getInstance("producer");
+log4cplus::Logger logger = log4cplus::Logger::getInstance("producer-c");
 
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: producer [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] [-w|--wait milliseconds] routing_key message");
+    LOG4CPLUS_ERROR(logger, "Usage: producer-c [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] [-w|--wait milliseconds] routing_key message");
 }
 
 int

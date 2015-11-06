@@ -11,7 +11,6 @@
 #include <thread>
 #include <chrono>
 #include <getopt.h>
-#include <signal.h>
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
@@ -23,12 +22,12 @@
 
 #include "error.h"
 
-log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer");
+log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer-c");
 
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] [-w|--wait milliseconds] queue");
+    LOG4CPLUS_ERROR(logger, "Usage: consumer-c [-h|--host host] [-p|--port port] [-w|--wait milliseconds] queue");
 }
 
 int

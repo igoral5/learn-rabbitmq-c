@@ -14,7 +14,7 @@
 class amqp_runtime_error : public std::runtime_error
 {
 public:
-    amqp_runtime_error(const std::string& message) : std::runtime_error(message) {}
+    explicit amqp_runtime_error(const std::string& message) : std::runtime_error(message) {}
     virtual ~amqp_runtime_error() noexcept {}
 };
 

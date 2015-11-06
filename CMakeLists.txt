@@ -11,3 +11,9 @@ target_link_libraries(consumer-c rabbitmq log4cplus)
 
 add_executable(producer-c producer-c.cpp error.h error.cpp)
 target_link_libraries(producer-c rabbitmq log4cplus)
+
+add_executable(consumer consumer.cpp)
+target_link_libraries(consumer log4cplus SimpleAmqpClient)
+
+add_executable(producer producer.cpp)
+target_link_libraries(producer log4cplus SimpleAmqpClient)
