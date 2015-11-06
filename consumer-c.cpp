@@ -8,7 +8,10 @@
 #include <exception>
 #include <cstdlib>
 #include <string>
+#include <thread>
+#include <chrono>
 #include <getopt.h>
+#include <signal.h>
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
@@ -25,7 +28,7 @@ log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer");
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] queue");
+    LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] [-w|--wait milliseconds] queue");
 }
 
 int
@@ -35,14 +38,16 @@ try
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     std::string host = "localhost";
     int port = AMQP_PROTOCOL_PORT;
+    size_t wait = 0;
     struct option long_opt[] = {
         {"host", required_argument, nullptr, 'h'},
         {"port", required_argument, nullptr, 'p'},
+        {"wait", required_argument, nullptr, 'w'},
         {nullptr, no_argument, nullptr, 0}
     };
     while(true)
     {
-        int c = getopt_long(argc, argv, "h:p:", long_opt, nullptr);
+        int c = getopt_long(argc, argv, "h:p:w:", long_opt, nullptr);
         if (c == -1)
             break;
         switch (c)
@@ -52,6 +57,9 @@ try
                 break;
             case 'p':
                 port = atoi(optarg);
+                break;
+            case 'w':
+                wait = atol(optarg);
                 break;
             default:
                 usage();
@@ -84,7 +92,9 @@ try
 	amqp_bytes_t queue = amqp_cstring_bytes(name_queue.c_str());
 	amqp_queue_declare(conn, 1, queue, 0, 1, 0, 0, amqp_empty_table);
 	amqp_check_error(amqp_get_rpc_reply(conn), "declare queue");
-	amqp_basic_consume(conn, 1, queue, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
+	amqp_basic_qos(conn, 1, 0, 1, 0);
+	amqp_check_error(amqp_get_rpc_reply(conn), "prefetch count");
+	amqp_basic_consume(conn, 1, queue, amqp_empty_bytes, 0, 0, 0, amqp_empty_table);
 	amqp_check_error(amqp_get_rpc_reply(conn), "consuming");
 	LOG4CPLUS_INFO(logger, "Ожидание входящих сообщений. Для выхода нажмите CTRL+C");
 	while(true)
@@ -96,11 +106,17 @@ try
 	        break;
 	    std::string message(reinterpret_cast<char *>(envelope.message.body.bytes), envelope.message.body.len);
 	    LOG4CPLUS_INFO_FMT(logger, "Receive: %s", message.c_str());
+	    check_error(amqp_basic_ack(conn, 1, envelope.delivery_tag, 0), "ack");
 	    amqp_destroy_envelope(&envelope);
+	    if (wait)
+	    {
+	        std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+	    }
 	}
 	amqp_check_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "closing channel");
 	amqp_check_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "closing connection");
 	check_error(amqp_destroy_connection(conn), "ending connection");
+	LOG4CPLUS_INFO(logger, "end");
 	return EXIT_SUCCESS;
 }
 catch (const std::exception& e)

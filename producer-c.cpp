@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
+#include <thread>
+#include <chrono>
 #include <getopt.h>
 
 #include <log4cplus/logger.h>
@@ -26,7 +28,7 @@ log4cplus::Logger logger = log4cplus::Logger::getInstance("producer");
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: producer [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] routing_key message");
+    LOG4CPLUS_ERROR(logger, "Usage: producer [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] [-w|--wait milliseconds] routing_key message");
 }
 
 int
@@ -38,16 +40,18 @@ try
     int port = AMQP_PROTOCOL_PORT;
     std::string exchange = "";
     size_t count = 1;
+    size_t wait = 0;
     struct option long_opt[] = {
     	{"host", required_argument, nullptr, 'h'},
     	{"port", required_argument, nullptr, 'p'},
     	{"exchange", required_argument, nullptr, 'e'},
     	{"count", required_argument, nullptr, 'c'},
+    	{"wait", required_argument, nullptr, 'w'},
     	{nullptr, no_argument, nullptr, 0}
     };
     while(true)
     {
-    	int c = getopt_long(argc, argv, "h:p:e:c:", long_opt, nullptr);
+    	int c = getopt_long(argc, argv, "h:p:e:c:w:", long_opt, nullptr);
     	if (c == -1)
     		break;
     	switch(c)
@@ -64,6 +68,9 @@ try
     	case 'c':
     		count = atol(optarg);
     		break;
+    	case 'w':
+    	    wait = atol(optarg);
+    	    break;
     	default:
     		usage();
     		return EXIT_FAILURE;
@@ -94,14 +101,23 @@ try
             AMQP_DEFAULT_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, "guest", "guest"), "login");
     amqp_channel_open(conn, 1);
     amqp_check_error(amqp_get_rpc_reply(conn), "open channel");
+    amqp_basic_properties_t props;
+    props._flags = AMQP_BASIC_DELIVERY_MODE_FLAG | AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_CONTENT_ENCODING_FLAG;
+    props.content_type = amqp_cstring_bytes("text/plain");
+    props.content_encoding = amqp_cstring_bytes("utf-8");
+    props.delivery_mode = 2;
     for (size_t i = 0; i < count; i++)
     {
         std::ostringstream oss;
         oss << i + 1 << " - " << message;
         check_error(amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange.c_str()),
-                amqp_cstring_bytes(routing_key.c_str()), 0, 0, nullptr,
+                amqp_cstring_bytes(routing_key.c_str()), 0, 0, &props,
                 amqp_cstring_bytes(oss.str().c_str())), "publish");
         LOG4CPLUS_INFO_FMT(logger, "Send: %s", oss.str().c_str());
+        if (wait)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+        }
     }
     amqp_check_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "closing channel");
     amqp_check_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "closing connection");
