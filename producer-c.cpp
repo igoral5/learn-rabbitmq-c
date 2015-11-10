@@ -105,7 +105,7 @@ try
     props._flags = AMQP_BASIC_DELIVERY_MODE_FLAG | AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_CONTENT_ENCODING_FLAG;
     props.content_type = amqp_cstring_bytes("text/plain");
     props.content_encoding = amqp_cstring_bytes("utf-8");
-    props.delivery_mode = 2;
+    props.delivery_mode = 1;
     for (size_t i = 0; i < count; i++)
     {
         std::ostringstream oss;

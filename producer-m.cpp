@@ -1,7 +1,7 @@
 /**
- * @file producer.cpp
+ * @file producer-m.cpp
  * @author igor
- * @date 06 нояб. 2015 г.
+ * @date 10 нояб. 2015 г.
  */
 
 #include <iostream>
@@ -12,21 +12,19 @@
 #include <chrono>
 #include <getopt.h>
 
+
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
 #include <log4cplus/configurator.h>
 
-#include <SimpleAmqpClient/SimpleAmqpClient.h>
-#include <amqp.h>
-#include <amqp_framing.h>
+#include <AMQPcpp.h>
 
-
-log4cplus::Logger logger = log4cplus::Logger::getInstance("producer");
+log4cplus::Logger logger = log4cplus::Logger::getInstance("producer-m");
 
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: producer [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] [-w|--wait milliseconds] routing_key message");
+    LOG4CPLUS_ERROR(logger, "Usage: producer-m [-h|--host host] [-p|--port port] [--exchange|-e exchange] [--count|-c count] [-w|--wait milliseconds] routing_key message");
 }
 
 int
@@ -81,16 +79,18 @@ try
     }
     const std::string routing_key(argv[optind]);
     const std::string message(argv[optind + 1]);
-    AmqpClient::Channel::ptr_t channel = AmqpClient::Channel::Create(host, port);
-    for (size_t i = 0; i < count; i++)
+    std::ostringstream connection_str;
+    connection_str << "guest:guest@" << host << ":" << port << "/";
+    AMQP amqp(connection_str.str());
+    AMQPExchange * ex = amqp.createExchange(exchange);
+    for(size_t i = 0; i < count; i++)
     {
         std::ostringstream oss;
         oss << i + 1 << " - " << message;
-        AmqpClient::BasicMessage::ptr_t basic_message = AmqpClient::BasicMessage::Create(oss.str());
-        basic_message -> ContentType("text/plain");
-        basic_message -> ContentEncoding("utf-8");
-        basic_message -> DeliveryMode(AmqpClient::BasicMessage::dm_nonpersistent);
-        channel -> BasicPublish(exchange, routing_key, basic_message);
+        ex -> setHeader("Content-type", "text/plain");
+        ex -> setHeader("Content-encoding", "UTF-8");
+        ex -> setHeader("Delivery-mode", 2);
+        ex -> Publish(oss.str(), routing_key);
         LOG4CPLUS_INFO_FMT(logger, "Send: %s", oss.str().c_str());
         if (wait)
         {

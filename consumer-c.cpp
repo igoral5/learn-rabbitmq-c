@@ -89,11 +89,11 @@ try
 	amqp_channel_open(conn, 1);
 	amqp_check_error(amqp_get_rpc_reply(conn), "channel open");
 	amqp_bytes_t queue = amqp_cstring_bytes(name_queue.c_str());
-	amqp_queue_declare(conn, 1, queue, 0, 1, 0, 0, amqp_empty_table);
+	amqp_queue_declare(conn, 1, queue, 0, 0, 0, 0, amqp_empty_table);
 	amqp_check_error(amqp_get_rpc_reply(conn), "declare queue");
 	amqp_basic_qos(conn, 1, 0, 1, 0);
 	amqp_check_error(amqp_get_rpc_reply(conn), "prefetch count");
-	amqp_basic_consume(conn, 1, queue, amqp_empty_bytes, 0, 0, 0, amqp_empty_table);
+	amqp_basic_consume(conn, 1, queue, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
 	amqp_check_error(amqp_get_rpc_reply(conn), "consuming");
 	LOG4CPLUS_INFO(logger, "Ожидание входящих сообщений. Для выхода нажмите CTRL+C");
 	while(true)
@@ -105,7 +105,7 @@ try
 	        break;
 	    std::string message(reinterpret_cast<char *>(envelope.message.body.bytes), envelope.message.body.len);
 	    LOG4CPLUS_INFO_FMT(logger, "Receive: %s", message.c_str());
-	    check_error(amqp_basic_ack(conn, 1, envelope.delivery_tag, 0), "ack");
+	    //check_error(amqp_basic_ack(conn, 1, envelope.delivery_tag, 0), "ack");
 	    amqp_destroy_envelope(&envelope);
 	    if (wait)
 	    {

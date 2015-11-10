@@ -1,12 +1,13 @@
 /**
- * @file consumer.cpp
+ * @file consumer-m.cpp
  * @author igor
- * @date 06 нояб. 2015 г.
+ * @date 10 нояб. 2015 г.
  */
 
 #include <iostream>
 #include <exception>
 #include <cstdlib>
+#include <sstream>
 #include <thread>
 #include <chrono>
 #include <getopt.h>
@@ -15,17 +16,30 @@
 #include <log4cplus/loggingmacros.h>
 #include <log4cplus/configurator.h>
 
-#include <amqp.h>
-#include <amqp_framing.h>
+#include <AMQPcpp.h>
 
-#include <SimpleAmqpClient/SimpleAmqpClient.h>
-
-log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer");
+log4cplus::Logger logger = log4cplus::Logger::getInstance("consumer-m");
 
 void
 usage()
 {
-    LOG4CPLUS_ERROR(logger, "Usage: consumer [-h|--host host] [-p|--port port] [-w|--wait milliseconds] queue");
+    LOG4CPLUS_ERROR(logger, "Usage: consumer-m [-h|--host host] [-p|--port port] [-w|--wait milliseconds] queue");
+}
+
+size_t wait = 0;
+
+int
+onMessage(AMQPMessage* message)
+{
+    uint32_t len;
+    std::string message_str = message -> getMessage(&len);
+    LOG4CPLUS_INFO_FMT(logger, "Receive: %s, length: %d, tag: %d", message_str.c_str(), len, message -> getDeliveryTag());
+    message -> getQueue() -> Ack(message -> getDeliveryTag());
+    if (wait)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+    }
+    return 0;
 }
 
 int
@@ -35,7 +49,6 @@ try
     log4cplus::PropertyConfigurator::doConfigure("log4cplus.properties");
     std::string host = "localhost";
     int port = AMQP_PROTOCOL_PORT;
-    size_t wait = 0;
     struct option long_opt[] = {
         {"host", required_argument, nullptr, 'h'},
         {"port", required_argument, nullptr, 'p'},
@@ -69,32 +82,15 @@ try
         return EXIT_FAILURE;
     }
     const std::string name_queue(argv[optind]);
-    AmqpClient::Channel::ptr_t channel = AmqpClient::Channel::Create(host, port);
-    channel -> DeclareQueue(name_queue, false, false, false, false);
-    //std::ostringstream consumer_tag;
-    //consumer_tag << "consumer-simple-" << getpid();
-    //channel -> BasicConsume(name_queue, consumer_tag.str(), true, false, false, 1);
-    //channel -> BasicQos(consumer_tag.str(), 1);
-    channel -> BasicConsume(name_queue);
+    std::ostringstream connection_str;
+    connection_str << "guest:guest@" << host << ":" << port << "/";
+    AMQP amqp(connection_str.str());
+    AMQPQueue *queue = amqp.createQueue(name_queue);
+    queue -> Declare(name_queue, AMQP_DURABLE);
+    queue -> addEvent(AMQP_MESSAGE, onMessage);
+    //queue -> Qos(0, 1, 0);
     LOG4CPLUS_INFO(logger, "Ожидание входящих сообщений. Для выхода нажмите CTRL+C");
-    while(true)
-    {
-        AmqpClient::Envelope::ptr_t envelope;
-        if (channel -> BasicConsumeMessage(envelope))
-        {
-            LOG4CPLUS_INFO_FMT(logger, "Receive: %s", envelope -> Message() -> Body().c_str());
-            //channel -> BasicAck(envelope);
-            if (wait)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(wait));
-            }
-        }
-        else
-        {
-            LOG4CPLUS_ERROR(logger, "error received message");
-        }
-
-    }
+    queue -> Consume();
 	return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
